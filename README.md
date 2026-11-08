@@ -4,9 +4,10 @@
 中文翻成英文；其他語言翻成台灣繁體中文。例如「早安」會以英文回覆。
 模型會被要求保留名稱、網址、換行和 emoji，但不保證翻譯完全正確。
 
-目前 `main` 為 Qwen 翻譯 Bot，已整合原 `codex/qwen-line-translator` 功能分支。
-倉庫名稱保留早期 VOOM／Gemini／Notion 名稱；晨報流程仍可從歷史提交查看，
-目前版本不包含該功能，也不呼叫 Gemini 或 Notion。
+目前 `qwen-line-translator` 分支為 Qwen 翻譯 Bot，`main` 保留晨報版本。
+請先執行 `git switch qwen-line-translator` 再依本文件安裝啟動；切換晨報使用 `git switch main`。
+倉庫名稱保留早期 VOOM／Gemini／Notion 名稱；本翻譯版本不呼叫 Gemini 或 Notion。
+切換前先提交或保存工作，並為兩套程式分別管理依賴及私人設定。
 
 ## 環境與安裝
 
