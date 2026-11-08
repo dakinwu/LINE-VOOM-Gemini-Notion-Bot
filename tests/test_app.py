@@ -1,4 +1,5 @@
 import unittest
+import os
 from unittest.mock import Mock, patch
 
 import app
@@ -60,6 +61,19 @@ class TranslationTests(unittest.TestCase):
     def test_empty_message_is_rejected(self):
         with self.assertRaises(app.TranslationError):
             app.translate_text("   ")
+
+    @patch("app.requests.post")
+    def test_malformed_model_content_is_a_translation_error(self, mock_post):
+        for payload in ({"message": None}, {"message": {"content": 123}}, []):
+            with self.subTest(payload=payload):
+                mock_post.return_value.json.return_value = payload
+                with self.assertRaises(app.TranslationError):
+                    app.translate_text("早安")
+
+    def test_timeout_rejects_non_finite_values(self):
+        for value in ("nan", "inf", "-inf"):
+            with self.subTest(value=value), patch.dict(os.environ, {"TEST_TIMEOUT": value}):
+                self.assertEqual(app._env_float("TEST_TIMEOUT", 120), 120)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import logging
+import math
 import os
 import threading
 import time
@@ -23,7 +24,8 @@ from starlette.concurrency import run_in_threadpool
 import uvicorn
 
 
-load_dotenv()
+if os.getenv("PYTHON_DOTENV_DISABLED", "").lower() not in {"1", "true", "yes", "on"}:
+    load_dotenv()
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 logger = logging.getLogger(__name__)
@@ -48,7 +50,10 @@ def _env_float(name, default, minimum=0.1):
     if not raw_value:
         return default
     try:
-        return max(minimum, float(raw_value))
+        value = float(raw_value)
+        if not math.isfinite(value):
+            raise ValueError("Expected a finite number")
+        return max(minimum, value)
     except ValueError:
         logger.warning("Invalid %s=%r; using %s", name, raw_value, default)
         return default
@@ -71,7 +76,7 @@ OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
 OLLAMA_THINK = _env_bool("OLLAMA_THINK", False)
 
 MAX_INPUT_CHARS = _env_int("MAX_INPUT_CHARS", 5000)
-LINE_MESSAGE_CHARS = _env_int("LINE_MESSAGE_CHARS", 4900)
+LINE_MESSAGE_CHARS = min(4900, _env_int("LINE_MESSAGE_CHARS", 4900, minimum=64))
 LINE_MAX_REPLY_MESSAGES = min(5, _env_int("LINE_MAX_REPLY_MESSAGES", 5))
 CACHE_TTL_SECONDS = _env_int("CACHE_TTL_SECONDS", 30 * 60)
 CACHE_MAX_SIZE = _env_int("CACHE_MAX_SIZE", 512)
@@ -211,11 +216,9 @@ def translate_text(text):
     except ValueError as exc:
         raise TranslationError("Ollama 回傳了無法解析的資料。") from exc
 
-    translated_text = (
-        response_data.get("message", {}).get("content", "").strip()
-        if isinstance(response_data, dict)
-        else ""
-    )
+    message = response_data.get("message") if isinstance(response_data, dict) else None
+    content = message.get("content") if isinstance(message, dict) else None
+    translated_text = content.strip() if isinstance(content, str) else ""
     if not translated_text:
         raise TranslationError("Qwen 沒有回傳翻譯內容。")
 
@@ -304,7 +307,10 @@ async def callback(request: Request):
         raise HTTPException(status_code=503, detail="LINE credentials are not configured.")
 
     signature = request.headers.get("X-Line-Signature", "")
-    body = (await request.body()).decode("utf-8")
+    try:
+        body = (await request.body()).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid UTF-8 body.") from exc
 
     try:
         await run_in_threadpool(handler.handle, body, signature)
