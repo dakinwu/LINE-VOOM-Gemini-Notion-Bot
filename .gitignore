@@ -1,13 +1,5 @@
 .venv/
 .env
-.env.*
-!.env.example
-*.log
-.coverage
-htmlcov/
-.DS_Store
-Thumbs.db
-.local-review/
 __pycache__/
 *.pyc
 .pytest_cache/
